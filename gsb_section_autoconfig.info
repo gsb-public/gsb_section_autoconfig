@@ -1,0 +1,6 @@
+name = GSB Section Autoconfig
+package = GSB
+core = 7.x
+description = ""
+
+dependencies[] = workbench_access
