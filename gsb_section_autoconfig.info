@@ -1,6 +1,6 @@
 name = GSB Section Autoconfig
 package = GSB
 core = 7.x
-description = ""
+description = "Autoconfigures the menus, blocks and roles when you add a new section in workbench."
 
 dependencies[] = workbench_access
