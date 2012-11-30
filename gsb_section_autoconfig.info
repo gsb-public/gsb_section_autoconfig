@@ -3,4 +3,7 @@ package = GSB
 core = 7.x
 description = "Autoconfigures the menus, blocks and roles when you add a new section in workbench."
 
+dependencies[] = advanced_menu
+dependencies[] = block
+dependencies[] = role_hide
 dependencies[] = workbench_access

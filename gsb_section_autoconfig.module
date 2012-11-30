@@ -43,22 +43,24 @@ function gsb_section_autoconfig_section_form_submit($form, &$form_state) {
 function gsb_section_autoconfig_menu_form_submit($form, &$form_state) {
   $values = $form_state['values'];
 
+  // only need to run if workbench_access is set for this menu.
   if (!empty($values['workbench_access'])) {
     $section = $values['mlid'];
     $name = $values['link_title'];
     $old_name = $values['original_item']['link_title'];
 
-    // If there is a name change of the menu item then change the role name.
+    // Check if the menu name has changed.
     if ($name != $old_name) {
+      // Change the role name.
       if ($role = user_role_load_by_name($old_name)) {
         $role->name = $name;
         user_role_save($role);
       }
 
+      // Change the menu name.
       if ($menu = menu_load($section)) {
         $menu['title'] = $name . ' ' . $section;
         menu_save($menu);
-        menu_rebuild();
       }
     }
     $alias = drupal_lookup_path('alias', $values['link_path']);
@@ -76,6 +78,8 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
   }
 
   $menu_title = $options['name'] . ' ' . $options['section'];
+  // If a menu hasn't been created add the menu and move the block into the
+  // correct region.
   if (!in_array($menu_title, $menus)) {
     $menu = array(
       'menu_name' => $options['section'],
@@ -122,6 +126,13 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     $role->name = $options['name'];
 
     user_role_save($role);
+
+    // Make the role hidden.
+    $hidden_roles = variable_get('role_hide', array());
+    if (!in_array($role->rid, $hidden_roles)) {
+      $hidden_roles[] = $role->rid;
+      variable_set('role_hide', $hidden_roles);
+    }
 
     // Give the role permissions to the menu.
     $fields = array(
