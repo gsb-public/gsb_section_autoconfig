@@ -1,5 +1,137 @@
 <?php
 
+/**
+ * Implements hook_form_alter().
+ */
 function gsb_section_autoconfig_form_alter(&$form, &$form_state, $form_id) {
-  dsm($form_id);
+  switch ($form_id) {
+    case 'workbench_access_section_form':
+      $form['#submit'][] = 'gsb_section_autoconfig_section_form_submit';
+      break;
+
+    case 'menu_edit_item':
+      $form['#submit'][] = 'gsb_section_autoconfig_menu_form_submit';
+      break;
+  }
+}
+
+/**
+ * Submit handler for section configuration in the workbench_access
+ * configuration page.
+ */
+function gsb_section_autoconfig_section_form_submit($form, &$form_state) {
+  $results = $form_state['values']['sections'];
+  $selection = array();
+
+  // Loop through all the form sections and menu items looking for selections.
+  // If they are selected process the results.
+  foreach ($results as $section => $result) {
+    foreach ($result as $mlid => $value) {
+      if (!empty($value)) {
+        $link = menu_link_load($mlid);
+        $alias = drupal_lookup_path('alias', $link['link_path']);
+        _gsb_section_autoconfig_process_section(array('section' => $mlid, 'name' => $link['link_title'], 'path' => $alias));
+      }
+    }
+  }
+}
+
+/**
+ * Submit haldner for the menu item page. So we can process workbench_access
+ * settings that are applied in the menu items.
+ */
+function gsb_section_autoconfig_menu_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  if (!empty($values['workbench_access'])) {
+    $section = $values['mlid'];
+    $name = $values['link_title'];
+    $old_name = $values['original_item']['link_title'];
+
+    // If there is a name change of the menu item then change the role name.
+    if ($name != $old_name) {
+      if ($role = user_role_load_by_name($old_name)) {
+        $role->name = $name;
+        user_role_save($role);
+      }
+
+      if ($menu = menu_load($section)) {
+        $menu['title'] = $name . ' ' . $section;
+        menu_save($menu);
+        menu_rebuild();
+      }
+    }
+    $alias = drupal_lookup_path('alias', $values['link_path']);
+    _gsb_section_autoconfig_process_section(array('section' => $section, 'name' => $name, 'path' => $alias));
+  }
+}
+
+/**
+ * Adds menus, roles and permissions when a new section is created.
+ */
+function _gsb_section_autoconfig_process_section($options = array('section' => '', 'name' => '', 'path' => '')) {
+  static $menus;
+  if (!isset($menus)) {
+    $menus = menu_get_menus();
+  }
+
+  $menu_title = $options['name'] . ' ' . $options['section'];
+  if (!in_array($menu_title, $menus)) {
+    $menu = array(
+      'menu_name' => $options['section'],
+      'title' => $menu_title,
+      'description' => 'Menu that manages the ' . $options['name'] . ' section.',
+    );
+    menu_save($menu);
+
+    // Move menu into the correct block location.
+    $fields = array(
+      'module',
+      'delta',
+      'theme',
+      'status',
+      'weight',
+      'region',
+      'pages',
+      'cache',
+    );
+
+    $values = array(
+      'module' => 'menu',
+      'delta' => $options['section'],
+      'theme' => variable_get('theme_default', ''),
+      'status' => 1,
+      'weight' => 0,
+      'region' => 'sidebar_first',
+      'pages' => "{$options['path']}\r\n{$options['path']}/*",
+      'cache' => -1,
+    );
+    db_insert('block')
+      ->fields($fields)
+      ->values($values)
+      ->execute();
+  }
+
+  static $roles;
+  if (!isset($roles)) {
+    $roles = user_roles();
+  }
+
+  if (!in_array($options['name'], $roles)) {
+    $role = new stdClass();
+    $role->name = $options['name'];
+
+    user_role_save($role);
+
+    // Give the role permissions to the menu.
+    $fields = array(
+      'menu_name' => $options['section'],
+      'rid' => $role->rid,
+    );
+    db_insert('advanced_menu_menu_admin_roles')
+      ->fields($fields)
+      ->execute();
+
+    menu_rebuild();
+  }
 }
