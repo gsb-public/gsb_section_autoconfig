@@ -27,8 +27,7 @@ function gsb_section_autoconfig_section_form_submit($form, &$form_state) {
   // If they are selected process the results.
   foreach ($results as $section => $result) {
     foreach ($result as $mlid => $value) {
-      if (!empty($value)) {
-        $link = menu_link_load($mlid);
+      if (!empty($value) && $link = menu_link_load($mlid)) {
         $alias = drupal_lookup_path('alias', $link['link_path']);
         _gsb_section_autoconfig_process_section(array('section' => $mlid, 'name' => $link['link_title'], 'path' => $alias));
       }
@@ -126,6 +125,12 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     $role->name = $options['name'];
 
     user_role_save($role);
+
+    // Allow role to be added to sections.
+    user_role_grant_permissions($role->rid, array('access workbench access by role'));
+
+    // Add role to workbench access section.
+    workbench_access_role_section_save($role->rid, $options['section'], 'menu');
 
     // Make the role hidden.
     $hidden_roles = variable_get('role_hide', array());
