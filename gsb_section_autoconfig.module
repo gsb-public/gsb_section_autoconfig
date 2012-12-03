@@ -1,6 +1,33 @@
 <?php
 
 /**
+ * Implements hook_menu().
+ */
+function gsb_section_autoconfig_menu() {
+  $items['admin/config/workbench/gsb_section_autoconfig'] = array(
+    'title' => 'GSB Section Autoconfig Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('gsb_section_autoconfig_form'),
+    'access arguments' => array('administer gsb section autoconfig'),
+    'file' => 'gsb_section_autoconfig.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function gsb_section_autoconfig_permission() {
+  return array(
+    'administer gsb section autoconfig' => array(
+      'title' => t('Administer GSB Section Autoconfig'),
+      'description' => t('Perform administration tasks for GSB Section Autoconfig'),
+    ),
+  );
+}
+
+/**
  * Implements hook_form_alter().
  */
 function gsb_section_autoconfig_form_alter(&$form, &$form_state, $form_id) {
@@ -137,6 +164,17 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     if (!in_array($role->rid, $hidden_roles)) {
       $hidden_roles[] = $role->rid;
       variable_set('role_hide', $hidden_roles);
+    }
+
+    // Add the menu to the list of available menus on the nodes.
+    $node_types = variable_get('gsb_section_autoconfig_node_types', array());
+
+    foreach ($node_types as $node_type) {
+      $menu_options = variable_get('menu_options_' . $node_type, array());
+      if (!in_array($options['section'], $menu_options)) {
+        $menu_options[] = $options['section'];
+        variable_set('menu_options_' . $node_type, $menu_options);
+      }
     }
 
     // Give the role permissions to the menu.
