@@ -189,3 +189,25 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     menu_rebuild();
   }
 }
+
+/**
+ * Adds a node type to be managed.
+ * 
+ * @param $type
+ *   The node type machine name.
+ *
+ * @return
+ *   Boolean where TRUE is the type was added and FALSE is where it already
+ *   exists.
+ */
+function gsb_section_autoconfig_add_manage_node_type($type) {
+  $node_types = variable_get('gsb_section_autoconfig_node_types', array());
+  if (!in_array($type, $node_types)) {
+    $node_types[$type] = $type;
+    variable_set('gsb_section_autoconfig_node_types', $node_types);
+
+    return TRUE;
+  }
+
+  return FALSE;
+}
