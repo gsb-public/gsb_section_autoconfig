@@ -8,10 +8,6 @@ function gsb_section_autoconfig_form() {
     $options[$node_type->type] = $node_type->name;
   }
 
-  $form['test'] = array(
-    '#value' => 'Does this work?',
-  );
-
   $form['gsb_section_autoconfig_node_types'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Autoassign Menus to These Node Types'),

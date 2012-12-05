@@ -16,3 +16,10 @@ function gsb_section_autoconfig_install() {
     ->condition('name', 'gsb_section_autoconfig', '=')
     ->execute();
 }
+
+/**
+ * Implements hook_uninstall().
+ */
+function gsb_section_autoconfig_uninstall() {
+  variable_delete('gsb_section_autoconfig_node_types');
+}
