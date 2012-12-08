@@ -192,7 +192,7 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
 
 /**
  * Adds a node type to be managed.
- * 
+ *
  * @param $type
  *   The node type machine name.
  *
