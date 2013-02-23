@@ -31,9 +31,14 @@ function gsb_section_autoconfig_permission() {
  * Implements hook_form_alter().
  */
 function gsb_section_autoconfig_form_alter(&$form, &$form_state, $form_id) {
-  dsm($form_id);
   switch ($form_id) {
     case 'taxonomy_form_term':
+      $form['field_workbench_section_path']['#states'] = array(
+        'visible' => array(
+          ':input[name="field_workbench_section_use_menu[und]"]' => array('checked' => TRUE),
+        ),
+      );
+
       $form['#submit'][] = 'gsb_section_autoconfig_taxonomy_term_form_submit';
       break;
   }
@@ -64,19 +69,17 @@ function gsb_section_autoconfig_section_form_submit($form, &$form_state) {
  * settings that are applied in the menu items.
  */
 function gsb_section_autoconfig_taxonomy_term_form_submit($form, &$form_state) {
-  dpm($form);
-  dpm($form_state);
 
   // only need to run if workbench_access is set for this menu.
   if (!empty($form_state['values']['workbench_access'])) {
     $options = array(
       'section' => $form_state['values']['tid'],
+      'use_menu' => !empty($form_state['values']['field_workbench_section_use_menu']['und'][0]['value']) ? TRUE : FALSE,
       'name' => $form_state['values']['name'],
       'old_name' => !empty($form_state['complete form']['name']['#default_value']) ? $form_state['complete form']['name']['#default_value'] : '',
       'path' => !empty($form_state['values']['field_workbench_section_path']['und'][0]['value']) ? $form_state['values']['field_workbench_section_path']['und'][0]['value'] : '',
       'old_path' => !empty($form_state['complete form']['field_workbench_section_path']['und'][0]['value']['#default_value']) ? $form_state['complete form']['field_workbench_section_path']['und'][0]['value']['#default_value'] : '',
     );
-    dpm($options);
     _gsb_section_autoconfig_process_section($options);
   }
 }
@@ -84,21 +87,25 @@ function gsb_section_autoconfig_taxonomy_term_form_submit($form, &$form_state) {
 /**
  * Adds menus, roles and permissions when a new section is created.
  */
-function _gsb_section_autoconfig_process_section($options = array('section' => '', 'name' => '', 'old_name' => '', 'path' => '', 'old_path' => '')) {
-  dpm($options);
+function _gsb_section_autoconfig_process_section($options = array('section' => '', 'use_menu' => FALSE, 'name' => '', 'old_name' => '', 'path' => '', 'old_path' => '')) {
   $section_name = $options['name'] . ':' . $options['section'];
   $old_section_name = $options['old_name'] . ':' . $options['section'];
   $menu_machine_name = 'section_' . $options['section'];
+  $path = !empty($options['path']) ? "{$options['path']}\r\n{$options['path']}/*" : '';
+  $region = (empty($path) || !$options['use_menu']) ? -1 : 'sidebar_primary';
+  $status = ($region == -1) ? 0 : 1;
 
   static $menus;
   if (!isset($menus)) {
     $menus = menu_get_menus();
   }
 
+  $has_menu = in_array($section_name, $menus);
+
   // If a menu has been created check for any updates that might be needed.
   // If it hasn't been created add the menu and move the block into the correct
   // region.
-  if (in_array($section_name, $menus)) {
+  if ($options['use_menu'] && $has_menu) {
     // Check if the section name has changed.
     if ($section_name !== $old_section_name) {
       // Change the menu name.
@@ -107,17 +114,15 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
         menu_save($menu);
       }
     }
-
-    // Check if the path has changed.
-    if ($options['path'] !== $options['old_path']) {
-      // Update path in block.
-      db_update('block')
-        ->fields(array('pages' => "{$options['path']}\r\n{$options['path']}/*"))
-        ->condition(array('module' => 'menu', 'delta' => $menu_machine_name))
-        ->execute();
-    }
+    dsm('here');
+    // Update path in block.
+    db_update('block')
+      ->fields(array('pages' => $path, 'region' => $region, 'status' => $status))
+      ->condition('module', 'menu')
+      ->condition('delta', $menu_machine_name)
+      ->execute();
   }
-  else {
+  else if ($options['use_menu'] && !$has_menu) {
     $menu = array(
       'menu_name' => $menu_machine_name,
       'title' => $section_name,
@@ -143,15 +148,35 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
       'theme' => variable_get('theme_default', ''),
       'status' => 1,
       'weight' => 0,
-      'region' => 'sidebar_first',
-      'pages' => "{$options['path']}\r\n{$options['path']}/*",
+      'region' => $region,
+      'pages' => $path,
       'cache' => -1,
     );
     db_insert('block')
       ->fields($fields)
       ->values($values)
       ->execute();
+
+    // Add the menu to the list of available menus on the nodes.
+    $node_types = variable_get('gsb_section_autoconfig_node_types', array());
+
+    foreach ($node_types as $node_type) {
+      $menu_options = variable_get('menu_options_' . $node_type, array());
+      if (!in_array($menu_machine_name, $menu_options)) {
+        $menu_options[] = $menu_machine_name;
+        variable_set('menu_options_' . $node_type, $menu_options);
+      }
+    }
   }
+  else if (!$options['use_menu'] && $has_menu) {
+    // Update path in block.
+    db_update('block')
+      ->fields(array('region' => $region, 'status' => $status))
+      ->condition('module', 'menu')
+      ->condition('delta', $menu_machine_name)
+      ->execute();
+  }
+
 
   // Create or update roles.
   static $roles;
@@ -191,27 +216,18 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
       variable_set('role_hide', $hidden_roles);
     }
 
-    // Add the menu to the list of available menus on the nodes.
-    $node_types = variable_get('gsb_section_autoconfig_node_types', array());
+    if ($options['use_menu']) {
+      // Give the role permissions to the menu.
+      $fields = array(
+        'menu_name' => $menu_machine_name,
+        'rid' => $role->rid,
+      );
+      db_insert('advanced_menu_menu_admin_roles')
+        ->fields($fields)
+        ->execute();
 
-    foreach ($node_types as $node_type) {
-      $menu_options = variable_get('menu_options_' . $node_type, array());
-      if (!in_array($menu_machine_name, $menu_options)) {
-        $menu_options[] = $menu_machine_name;
-        variable_set('menu_options_' . $node_type, $menu_options);
-      }
+      menu_rebuild();
     }
-
-    // Give the role permissions to the menu.
-    $fields = array(
-      'menu_name' => $menu_machine_name,
-      'rid' => $role->rid,
-    );
-    db_insert('advanced_menu_menu_admin_roles')
-      ->fields($fields)
-      ->execute();
-
-    menu_rebuild();
   }
 }
 
