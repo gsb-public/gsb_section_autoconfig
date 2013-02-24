@@ -274,6 +274,6 @@ function gsb_section_autoconfig_workbench_access_save($section) {
 function gsb_section_autoconfig_workbench_access_delete($section) {
   // Notify our module if the section is related to taxonomy.
   if ($section['access_type'] == 'taxonomy') {
-    mymodule_delete_something();
+    dpm($section);
   }
 }
