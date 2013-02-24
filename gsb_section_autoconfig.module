@@ -114,7 +114,7 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
         menu_save($menu);
       }
     }
-    dsm('here');
+
     // Update path in block.
     db_update('block')
       ->fields(array('pages' => $path, 'region' => $region, 'status' => $status))
@@ -131,31 +131,17 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     menu_save($menu);
 
     // Move menu into the correct block location.
-    $fields = array(
-      'module',
-      'delta',
-      'theme',
-      'status',
-      'weight',
-      'region',
-      'pages',
-      'cache',
-    );
-
     $values = array(
       'module' => 'menu',
       'delta' => $menu_machine_name,
       'theme' => variable_get('theme_default', ''),
       'status' => 1,
-      'weight' => 0,
       'region' => $region,
       'pages' => $path,
       'cache' => -1,
     );
-    db_insert('block')
-      ->fields($fields)
-      ->values($values)
-      ->execute();
+
+    drupal_write_record('block', $values);
 
     // Add the menu to the list of available menus on the nodes.
     $node_types = variable_get('gsb_section_autoconfig_node_types', array());
@@ -208,6 +194,12 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
 
     // Add role to workbench access section.
     workbench_access_role_section_save($role->rid, $options['section'], 'taxonomy');
+
+    // Add an administrator
+    $roles = user_roles();
+    $rid = array_search('administrator', $roles);
+    // Add role to workbench access section.
+    workbench_access_role_section_save($rid, $term->tid, 'taxonomy');
 
     // Make the role hidden.
     $hidden_roles = variable_get('role_hide', array());
@@ -266,5 +258,22 @@ function gsb_section_autoconfig_workbench_access_save($section) {
   // Notify our module if the section is related to taxonomy.
   if ($section['access_type'] == 'taxonomy') {
     dpm($section);
+  }
+}
+
+/**
+ * Responds to the deletion of a Workbench Access section.
+ *
+ * This hook fires whenever we delete an access control section.
+ * Note that this hook fires _before_ the base tables are cleared,
+ * in case you need to retrieve data from those tables.
+ *
+ * @param $section
+ *   Section data as defined by hook_workbench_access_info().
+ */
+function gsb_section_autoconfig_workbench_access_delete($section) {
+  // Notify our module if the section is related to taxonomy.
+  if ($section['access_type'] == 'taxonomy') {
+    mymodule_delete_something();
   }
 }
