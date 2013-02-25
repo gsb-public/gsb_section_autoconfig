@@ -33,34 +33,17 @@ function gsb_section_autoconfig_permission() {
 function gsb_section_autoconfig_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'taxonomy_form_term':
-      $form['field_workbench_section_path']['#states'] = array(
-        'visible' => array(
-          ':input[name="field_workbench_section_use_menu[und]"]' => array('checked' => TRUE),
-        ),
-      );
+      if (empty($form['delete'])) {
+        $form['field_workbench_section_path']['#states'] = array(
+          'visible' => array(
+            ':input[name="field_workbench_section_use_menu[und]"]' => array('checked' => TRUE),
+          ),
+        );
 
-      $form['#submit'][] = 'gsb_section_autoconfig_taxonomy_term_form_submit';
-      break;
-  }
-}
-
-/**
- * Submit handler for section configuration in the workbench_access
- * configuration page.
- */
-function gsb_section_autoconfig_section_form_submit($form, &$form_state) {
-  $results = $form_state['values']['sections'];
-  $selection = array();
-
-  // Loop through all the form sections and menu items looking for selections.
-  // If they are selected process the results.
-  foreach ($results as $section => $result) {
-    foreach ($result as $mlid => $value) {
-      if (!empty($value) && $link = menu_link_load($mlid)) {
-        $alias = drupal_lookup_path('alias', $link['link_path']);
-        _gsb_section_autoconfig_process_section(array('section' => $mlid, 'name' => $link['link_title'], 'path' => $alias));
+        $form['#submit'][] = 'gsb_section_autoconfig_taxonomy_term_form_submit';
       }
-    }
+
+      break;
   }
 }
 
@@ -186,7 +169,6 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
   else {
     $role = new stdClass();
     $role->name = $section_name;
-
     user_role_save($role);
 
     // Allow role to be added to sections.
@@ -199,7 +181,7 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     $roles = user_roles();
     $rid = array_search('administrator', $roles);
     // Add role to workbench access section.
-    workbench_access_role_section_save($rid, $term->tid, 'taxonomy');
+    workbench_access_role_section_save($rid, $options['section'], 'taxonomy');
 
     // Make the role hidden.
     $hidden_roles = variable_get('role_hide', array());
@@ -246,22 +228,6 @@ function gsb_section_autoconfig_add_manage_node_type($type) {
 }
 
 /**
- * Responds to the saving of a Workbench Access section.
- *
- * This hook fires whenever we save changes to an access control section.
- * Normally, this hook is only fired on the initial creation of the section.
- *
- * @param $section
- *   Section data as defined by hook_workbench_access_info().
- */
-function gsb_section_autoconfig_workbench_access_save($section) {
-  // Notify our module if the section is related to taxonomy.
-  if ($section['access_type'] == 'taxonomy') {
-    dpm($section);
-  }
-}
-
-/**
  * Responds to the deletion of a Workbench Access section.
  *
  * This hook fires whenever we delete an access control section.
@@ -274,6 +240,16 @@ function gsb_section_autoconfig_workbench_access_save($section) {
 function gsb_section_autoconfig_workbench_access_delete($section) {
   // Notify our module if the section is related to taxonomy.
   if ($section['access_type'] == 'taxonomy') {
-    dpm($section);
+    // Update path in block.
+    db_update('block')
+      ->fields(array('region' => -1, 'status' => 0))
+      ->condition('module', 'menu')
+      ->condition('delta', 'section_' . $section['access_id'])
+      ->execute();
+
+    // Remove role
+    if ($term = taxonomy_term_load($section['access_id'])) {
+      user_role_delete($term->name . ':' . $term->tid);
+    }
   }
 }
