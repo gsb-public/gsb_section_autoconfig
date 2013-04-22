@@ -73,9 +73,9 @@ function gsb_section_autoconfig_taxonomy_term_form_submit($form, &$form_state) {
 function _gsb_section_autoconfig_process_section($options = array('section' => '', 'use_menu' => FALSE, 'name' => '', 'old_name' => '', 'path' => '', 'old_path' => '')) {
   $section_name = $options['name'] . ':' . $options['section'];
   $old_section_name = $options['old_name'] . ':' . $options['section'];
-  $menu_machine_name = 'section_' . $options['section'];
+  $menu_machine_name = 'section-' . $options['section'];
   $path = !empty($options['path']) ? "{$options['path']}\r\n{$options['path']}/*" : '';
-  $region = (empty($path) || !$options['use_menu']) ? -1 : 'sidebar_primary';
+  $region = (empty($path) || !$options['use_menu']) ? -1 : 'sidebar_first';
   $status = ($region == -1) ? 0 : 1;
 
   static $menus;
@@ -120,7 +120,9 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
       'theme' => variable_get('theme_default', ''),
       'status' => 1,
       'region' => $region,
+      'visibility' => 1,
       'pages' => $path,
+      'title' => '<none>',
       'cache' => -1,
     );
 
@@ -196,6 +198,13 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
         'menu_name' => $menu_machine_name,
         'rid' => $role->rid,
       );
+      db_insert('advanced_menu_menu_admin_roles')
+        ->fields($fields)
+        ->execute();
+
+      // Add the administrator role.
+      $admin = user_role_load_by_name('administrator');
+      $fields['rid'] = $admin->rid;
       db_insert('advanced_menu_menu_admin_roles')
         ->fields($fields)
         ->execute();
