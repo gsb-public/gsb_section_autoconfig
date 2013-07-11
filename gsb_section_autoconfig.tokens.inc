@@ -30,11 +30,10 @@ function gsb_section_autoconfig_tokens($type, $tokens, array $data = array(), ar
           else {
             $mlid = db_query("SELECT ml.menu_name from {menu_links} ml where link_path = 'node/" . $data['node']->nid . "'")->fetchField();
           }
-          if ($link_info = menu_link_load($mlid)) {
-            if ($alias = drupal_lookup_path('alias', $link_info['link_path'])) {
-              $replacements[$original] = $alias;
-            }
-          }
+
+          $tid = str_replace('section-', '', $mlid);
+          $section = taxonomy_term_load($tid);
+          $replacements[$original] = $section->field_workbench_section_path[$data['node']->language][0]['safe_value'];
           break;
       }
     }
