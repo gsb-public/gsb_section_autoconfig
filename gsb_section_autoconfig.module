@@ -185,6 +185,11 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
     // Add role to workbench access section.
     workbench_access_role_section_save($rid, $options['section'], 'taxonomy');
 
+    // Add marketing_admin
+    $rid = array_search('marketing_admin', $roles);
+    // Add role to workbench access section.
+    workbench_access_role_section_save($rid, $options['section'], 'taxonomy');    
+
     // Make the role hidden.
     $hidden_roles = variable_get('role_hide', array());
     if (!in_array($role->rid, $hidden_roles)) {
@@ -208,6 +213,13 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
       db_insert('advanced_menu_menu_admin_roles')
         ->fields($fields)
         ->execute();
+
+      // Add the marketing_admin role.
+      $marketing_admin = user_role_load_by_name('marketing_admin');
+      $fields['rid'] = $marketing_admin->rid;
+      db_insert('advanced_menu_menu_admin_roles')
+        ->fields($fields)
+        ->execute();        
 
       menu_rebuild();
     }
