@@ -122,7 +122,7 @@ function _gsb_section_autoconfig_process_section($options = array('section' => '
       'region' => $region,
       'visibility' => 1,
       'pages' => $path,
-      'title' => '<none>',
+      'title' => 'Section menu',
       'cache' => -1,
     );
 
