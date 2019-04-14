@@ -1,0 +1,25 @@
+{
+  "name": "gsb/gsb_section_autoconfig",
+  "description": "GSB Section Autoconfig",
+  "license": "Apache-2.0",  
+  "type": "drupal-custom-module",
+  "require": {
+    "php": ">=5.3.0",
+    "ext-curl": "*",
+    "ext-gd": "*",
+    "ext-json": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "ext-xml": "*",
+    "cweagans/composer-patches": "^1.6.5",
+    "drupal/advanced_menu": "1.9",
+    "drupal/role_hide": "1.1"
+  },
+  "extra": {
+    "patches": {
+      "drupal/advanced_menu": {
+        "2125179": "https://drupal.org/files/issues/advanced_menu_patch-2125179-1.patch"  
+      }
+    }
+  }
+}
